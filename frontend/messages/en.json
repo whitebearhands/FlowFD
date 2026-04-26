@@ -1,0 +1,707 @@
+{
+  "auth": {
+    "login": {
+      "title": "Sign In",
+      "subtitle": "Welcome back to FlowFD",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "••••••••",
+      "submitButton": "Sign In",
+      "googleButton": "Sign in with Google",
+      "noAccount": "Don't have an account?",
+      "registerLink": "Sign up",
+      "loading": "Signing in..."
+    },
+    "register": {
+      "title": "Create Account",
+      "subtitle": "Get started with FlowFD",
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "8+ characters",
+      "displayName": "Name",
+      "displayNamePlaceholder": "John Doe",
+      "groupAction": "Group",
+      "createGroup": "Create new group",
+      "joinGroup": "Join with invite code",
+      "groupName": "Group name",
+      "groupNamePlaceholder": "My Team",
+      "inviteCode": "Invite code",
+      "inviteCodePlaceholder": "Enter 8-character code",
+      "githubPat": "GitHub Personal Access Token",
+      "githubPatPlaceholder": "ghp_xxxxxxxxxxxx (optional)",
+      "githubPatHint": "PAT with repo permissions. You can also add this later in Settings.",
+      "submitButton": "Create Account",
+      "googleButton": "Sign up with Google",
+      "hasAccount": "Already have an account?",
+      "loginLink": "Sign in",
+      "loading": "Creating account..."
+    },
+    "errors": {
+      "invalidCredentials": "Invalid email or password",
+      "emailAlreadyInUse": "Email already in use",
+      "weakPassword": "Password must be at least 8 characters",
+      "invalidInviteCode": "Invalid invite code",
+      "displayNameRequired": "Please enter your name",
+      "groupNameRequired": "Please enter a group name",
+      "inviteCodeRequired": "Please enter an invite code",
+      "unknown": "An error occurred. Please try again"
+    }
+  },
+  "app": {
+    "sidebar": {
+      "dashboard": "Dashboard",
+      "billing": "Billing",
+      "projects": "Projects",
+      "samples": "Samples",
+      "settings": "Settings",
+      "recentProjects": "Recent Projects",
+      "signOut": "Sign out"
+    }
+  },
+  "dashboard": {
+    "stat": {
+      "activeProjects": "Active Projects",
+      "totalProjects": "Total Projects",
+      "archived": "Archived",
+      "quickAction": "Quick Action"
+    },
+    "projectPanel": {
+      "title": "Project Status",
+      "meetingCount": "{count} meetings"
+    },
+    "recentPanel": {
+      "title": "Recent Meetings",
+      "empty": "No recent meetings"
+    },
+    "pendingPanel": {
+      "title": "Pending Items",
+      "empty": "No pending items"
+    },
+    "pipeline": {
+      "meeting": "Meeting",
+      "cps": "CPS",
+      "prd": "PRD",
+      "design": "Design",
+      "code": "Code",
+      "sync": "Sync"
+    }
+  },
+  "plan": {
+    "pageTitle": "Design",
+    "tab": {
+      "plan": "Development Plan",
+      "design": "Architecture"
+    },
+    "plan": {
+      "noData": "No development plan yet. Generate one after PRD is ready.",
+      "generate": "Generate Plan",
+      "regenerate": "Regenerate",
+      "generating": "Generating... (~30s)"
+    },
+    "design": {
+      "noData": "Enter your tech stack and generate an architecture design.",
+      "techStack": "Tech Stack",
+      "constraints": "Constraints",
+      "constraintsPlaceholder": "No external cloud, launch within 3 months (comma separated)",
+      "generate": "Generate Architecture",
+      "regenerate": "Regenerate",
+      "generating": "Generating... (~30s)"
+    },
+    "tabs": {
+      "plan": "Development Plan",
+      "architecture": "System Architecture",
+      "datamodel": "Data Model",
+      "api": "API Spec",
+      "frontend": "Frontend",
+      "backend": "Backend",
+      "security": "Security",
+      "performance": "Performance/Caching"
+    },
+    "toolbar": { "export": "Export" },
+    "error": {
+      "timeout": "Design generation timed out. Please refresh in a moment.",
+      "failed": "Design generation failed.",
+      "timeNote": "(up to 2 min)"
+    },
+    "section": {
+      "phases": "Development Phases",
+      "milestones": "Milestones",
+      "criticalPath": "Critical Path",
+      "notes": "Notes",
+      "dataFlow": "Data Flow",
+      "components": "Components",
+      "techStack": "Tech Stack",
+      "deployment": "Deployment",
+      "designDecisions": "Key Design Decisions",
+      "auth": "Authentication Method",
+      "routingComponents": "Routing / Component Structure",
+      "routing": "Routing",
+      "componentsList": "Components",
+      "stateManagement": "State Management",
+      "apiDeps": "API Dependencies",
+      "layerStructure": "Layer Structure",
+      "backgroundJobs": "Background Jobs",
+      "externalIntegrations": "External Integrations",
+      "caching": "Caching Strategy",
+      "queryOptimization": "Query Optimization",
+      "bottlenecks": "Bottlenecks",
+      "scaling": "Scaling Strategy",
+      "designNotes": "Key Design Notes"
+    },
+    "table": {
+      "name": "Name",
+      "type": "Type",
+      "roleDesc": "Role / Description",
+      "area": "Area",
+      "tech": "Technology",
+      "value": "Value",
+      "method": "Method",
+      "endpoint": "Endpoint",
+      "description": "Description",
+      "relations": "Relations",
+      "indexes": "Indexes"
+    },
+    "filter": { "all": "All" },
+    "security": {
+      "authentication": "Authentication",
+      "authorization": "Authorization",
+      "dataProtection": "Data Protection",
+      "apiSecurity": "API Security"
+    },
+    "performance": { "expire": "Expiry:", "mitigation": "Mitigation:" },
+    "regenTitle": "Reconfigure Tech Stack",
+    "cancel": "Cancel",
+    "empty": "No content for this section"
+  },
+  "prd": {
+    "noData": "No PRD yet",
+    "noDataHint": "PRD is generated automatically after CPS is created from a meeting",
+    "generating": "Generating PRD...",
+    "history": {
+      "title": "Version History",
+      "auto": "auto",
+      "manual": "manual"
+    },
+    "nav": { "section": "Sections", "version": "Version", "overview": "Overview", "goals": "Goals", "users": "Users", "openQuestions": "Open Questions",  "nonFunctional": "Non-Functional Requirements", "features": "Feature Requirements" },
+    "view": { "document": "Document", "kanban": "Kanban" },
+    "toolbar": {
+      "export": "Export",
+      "edit": "Edit",
+      "generateDesign": "Generate Design →",
+      "totalFr": "{count} FRs total",
+      "cpsBase": "Based on CPS v{version}"
+    },
+    "kanban": { "selectCard": "Select a card", "empty": "None", "description": "Description" },
+    "goals": { "title": "Goals", "successMetrics": "Success Metrics", "metric": "Metric", "asis": "AS-IS", "tobe": "TO-BE" },
+    "users": { "title": "Users", "goal": "Goal:", "pain": "Pain:" },
+    "risks": { "title": "Risks" },
+    "openQuestions": { "title": "Open Questions" },
+    "outOfScope": { "title": "Out of Scope" },
+    "nonFunctional": { "title": "Non-Functional Requirements", "category": "Category", "requirement": "Requirement", "metric": "Metric" },
+    "overview": { "title": "Overview", "version": "Version", "baseCps": "Base CPS", "totalFr": "Total FRs", "openQuestions": "Open Questions" },
+    "features": { "title": "Feature Requirements" },
+    "meta": {
+      "title": "Meta",
+      "version": "Version",
+      "baseCps": "Base CPS",
+      "frCount": "FR Count",
+      "updateMethod": "Update Method",
+      "updated": "Updated",
+      "auto": "Auto",
+      "manual": "Manual"
+    },
+    "sectionEmpty": "No content for this section"
+  },
+  "cps": {
+    "noData": "No CPS yet",
+    "noDataHint": "Add a meeting to generate CPS automatically",
+    "empty": "No content",
+    "section": {
+      "context": "Context",
+      "problem": "Problem",
+      "solution": "Solution",
+      "assumptions": "Assumptions",
+      "risks": "Risks",
+      "outOfScope": "Out of Scope",
+      "pending": "Pending",
+      "decisionLog": "Decision Log"
+    },
+    "field": {
+      "background": "Background",
+      "environment": "Environment",
+      "stakeholders": "Stakeholders",
+      "constraints": "Constraints",
+      "businessProblem": "Business Problem",
+      "technicalProblem": "Technical Problem",
+      "impact": "Impact",
+      "rootCause": "Root Cause",
+      "proposedByClient": "Proposed by Client",
+      "proposedByFde": "Proposed by FDE",
+      "hypothesis": "Hypothesis",
+      "successCriteria": "Success Criteria",
+      "riskIfWrong": "Risk if wrong",
+      "technicalRisks": "Technical",
+      "businessRisks": "Business",
+      "questions": "Questions",
+      "insights": "Insights",
+      "solutionIdeas": "Solution Ideas"
+    },
+    "history": {
+      "title": "Version History",
+      "auto": "auto",
+      "manual": "manual"
+    },
+    "nav": { "section": "Sections", "version": "Version" },
+    "meta": {
+      "title": "Meta",
+      "version": "Version",
+      "meetings": "Meetings",
+      "lastUpdated": "Last Updated",
+      "updateMethod": "Update Method",
+      "auto": "Auto",
+      "manual": "Manual"
+    },
+    "toolbar": { "edit": "Edit", "viewPrd": "View PRD →", "createPrd": "Generate PRD", "regeneratePrd": "Regenerate PRD", "generatingPrd": "Generating..." ,"analyzingCps":"Analyzing CPS..." },
+    "edit": {
+      "editBtn": "Edit",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving...",
+      "meetingRef": "Meeting #"
+    }
+  },
+  "meeting": {
+    "analysisStatus": {
+      "pending": "Pending",
+      "processing": "Analyzing",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "pageTitle": "Meetings",
+    "addMeeting": "Add Meeting",
+    "addFirst": "Add your first meeting",
+    "empty": "No meetings yet",
+    "untitled": "(Untitled)",
+    "participants": "Participants",
+    "searchPlaceholder": "Search meetings...",
+    "noSearchResult": "No results found",
+    "selectPrompt": "Select a meeting",
+    "detail": {
+      "untitled": "(Untitled)",
+      "summarizing":"Summarizing...",
+      "analyzingBanner": "CPS/PRD analysis in progress. Will update automatically.",
+      "failedBanner": "Analysis failed. Re-save the meeting to retry.",
+      "tab": {
+        "content": "Content",
+        "cpsUpdate": "CPS Updates"
+      },
+      "cpsUpdate": {
+        "created": "This meeting created CPS version",
+        "updated": "updated",
+        "noChanges": "No CPS fields changed",
+        "waiting": "CPS update history will appear after analysis",
+        "none": "No CPS changes from this meeting"
+      },
+      "edit": "Edit",
+      "editHint": "Save your changes to request re-analysis",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "startAnalysis": "Start Analysis",
+      "reanalyze": "Re-analyze",
+      "reanalyzing": "Analyzing...",
+      "analyzeAll": "Analyze {count} meetings",
+      "analyzeCpsOnly": "Generate CPS",
+      "analyzeCpsPrd": "Generate CPS+PRD",
+      "analyzing": "Analyzing...",
+      "analyzeError": "Analysis failed. Check your credits.",
+      "summary":"Meeting Summary"
+    },
+    "form": {
+      "pageTitle": "Add Meeting",
+      "analyzeHint": "Saving will automatically start CPS/PRD analysis",
+      "cardTitle": "Add Meeting Record",
+      "title": "Title",
+      "titlePlaceholder": "Kickoff Meeting",
+      "optional": "(optional)",
+      "date": "Date",
+      "participants": "Participants",
+      "participantsPlaceholder": "Press Enter to add",
+      "participantsHint": "Type a name and press Enter or Tab",
+      "content": "Meeting content",
+      "contentPlaceholder": "Enter meeting notes here...",
+      "contentHint": "Original content is preserved. Plain text is fine.",
+      "submitHint": "CPS analysis starts in background after saving",
+      "submitSaveOnly": "Save",
+      "submit": "Save & Analyze →",
+      "submitting": "Saving...",
+      "cancel": "Cancel",
+      "previewEmpty": "Preview will appear as you type",
+      "inputMode": {
+        "write": "Write",
+        "upload": "Upload"
+      },
+      "editorTab": {
+        "edit": "Edit",
+        "preview": "Preview"
+      },
+      "upload": {
+        "dropHere": "Drop file here or click to browse",
+        "formats": ".txt and .md supported",
+        "loaded": "File loaded"
+      }
+    }
+  },
+  "project": {
+    "dashboard": {
+      "title": "Dashboard",
+      "newProject": "New Project",
+      "empty": "No projects yet",
+      "createFirst": "Create your first project"
+    },
+    "form": {
+      "pageTitle": "New Project",
+      "cardTitle": "Project Details",
+      "name": "Project name",
+      "namePlaceholder": "Inventory Management System",
+      "client": "Client",
+      "clientPlaceholder": "ABC Logistics",
+      "description": "Description",
+      "descriptionPlaceholder": "Brief description of the project",
+      "optional": "(optional)",
+      "submit": "Create Project",
+      "submitting": "Creating...",
+      "subtitle": "Create a project to manage meetings, CPS, and PRD",
+      "color": "Project color",
+      "tags": "Tags",
+      "tagsPlaceholder": "Type a tag and press Enter",
+      "optionalSettings": "Optional settings",
+      "githubRepo": "GitHub repo",
+      "githubRepoPlaceholder": "repo-name",
+      "githubAutoGenerate": "Auto generate",
+      "githubAutoCommit": "Auto Commit",
+      "githubAutoCommitDesc": "Automatically commit to GitHub when CPS/PRD/Design is generated",
+      "addFirstMeeting": "Add first meeting after creation",
+      "addFirstMeetingDesc": "Go directly to the meeting form after creating the project",
+      "cancel": "Cancel"
+    },
+    "nav": {
+      "home": "Home",
+      "meetings": "Meetings",
+      "cps": "CPS",
+      "prd": "PRD",
+      "plan": "Design",
+      "code": "Code",
+      "sync": "GitHub Sync"
+    },
+    "lastMeeting": "Last meeting",
+    "noMeetingYet": "No meetings yet",
+    "archive": "Archive",
+    "unarchive": "Activate",
+    "notFound": "Project not found",
+    "fetchError": "Failed to load projects",
+    "home": {
+      "breadcrumb": { "dashboard": "Dashboard" },
+      "editBtn": "Edit",
+      "syncBtn": "GitHub Sync",
+      "editModal": {
+        "title": "Edit Project",
+        "save": "Save",
+        "saving": "Saving..."
+      },
+      "cpsSummary": "CPS Summary",
+      "viewAll": "View all →",
+      "recentMeetings": "Recent Meetings",
+      "projectInfo": "Project Info",
+      "pipeline": "Pipeline",
+      "client": "Client",
+      "startDate": "Start date",
+      "cpsVersion": "CPS version",
+      "noContent": "No content",
+      "noCps": "No CPS yet.",
+      "addMeeting": "Add a meeting",
+      "noMeetings": "No meetings yet",
+      "noParticipants": "No participants"
+    }
+  },
+  "settings": {
+    "pageTitle": "Settings",
+    "nav": {
+      "account": "Account",
+      "profile": "Profile",
+      "team": "Team & Group",
+      "integrations": "Integrations",
+      "llm": "LLM Models",
+      "github": "GitHub",
+      "preferences": "Preferences",
+      "display": "Language & Display",
+      "automation": "Automation",
+      "pipeline": "Pipeline"
+    },
+    "profile": {
+      "title": "Profile",
+      "subtitle": "Manage your name, job title, and password",
+      "basicInfo": "Basic Info",
+      "name": "Name",
+      "namePlaceholder": "Jane Doe",
+      "jobTitle": "Job Title",
+      "jobTitlePlaceholder": "Forward Deployed Engineer",
+      "email": "Email",
+      "emailReadOnly": "Email cannot be changed",
+      "noName": "No name",
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Saved ✓",
+      "changePassword": "Change Password",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm Password",
+      "changePasswordBtn": "Change Password",
+      "passwordMismatch": "Passwords do not match",
+      "passwordTooShort": "Password must be at least 8 characters",
+      "passwordWrong": "Current password is incorrect"
+    },
+    "team": {
+      "title": "Team & Group",
+      "subtitle": "Manage your group and team members",
+      "groupInfo": "Group Info",
+      "members": "Members",
+      "roleAdmin": "Admin",
+      "roleMember": "Member",
+      "me": "me",
+      "unnamed": "No name",
+      "remove": "Remove",
+      "inviteByEmail": "Invite by Email",
+      "inviteEmailPlaceholder": "teammate@example.com",
+      "invite": "Invite",
+      "inviteNotImplemented": "Email invite is not yet supported. Share the invite code instead.",
+      "inviteCode": "Invite Code",
+      "copy": "Copy",
+      "copied": "Copied ✓",
+      "regenerate": "Regenerate",
+      "inviteCodeHint": "Share this code so teammates can join your group",
+      "loading": "Loading..."
+    },
+    "llm": {
+      "title": "LLM Models",
+      "subtitle": "Configure default LLM models.",
+      "defaultModels": "Default Models",
+      "cpsGeneration": "CPS Generation",
+      "prdGeneration": "PRD Generation",
+      "codeGeneration": "Code Generation",
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Saved ✓",
+      "loading": "Loading...",
+      "defaultModelsDesc": "Set the default model per feature. API keys are managed on the server."
+    },
+    "github": {
+      "title": "GitHub Integration",
+      "subtitle": "Connect repositories using a GitHub Personal Access Token",
+      "connected": "GitHub Connected",
+      "connectedHint": "Personal Access Token is registered",
+      "notConnected": "GitHub Not Connected",
+      "notConnectedHint": "Enter a PAT (Personal Access Token) to connect",
+      "tokenPlaceholder": "ghp_xxxxxxxxxxxxxxxxxxxx",
+      "tokenHint": "Enter a PAT with repo scope. GitHub → Settings → Developer settings → Tokens",
+      "connect": "Connect",
+      "connecting": "Connecting...",
+      "disconnect": "Disconnect",
+      "defaultSettings": "Default Settings",
+      "repoVisibility": "Repo Visibility",
+      "private": "Private",
+      "public": "Public",
+      "repoPrefix": "Repo Prefix",
+      "repoPrefixHint": "Optional",
+      "repoPrefixPlaceholder": "fde-",
+      "save": "Save",
+      "saved": "Saved ✓",
+      "loading": "Loading..."
+    },
+    "display": {
+      "title": "Language & Display",
+      "subtitle": "Configure language, timezone, and date format",
+      "loading": "Loading...",
+      "language": "Language",
+      "datetimeSettings": "Timezone & Date Format",
+      "timezone": "Timezone",
+      "dateFormat": "Date Format",
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Saved ✓"
+    },
+    "automation": {
+      "title": "Pipeline Automation",
+      "subtitle": "Manage analysis mode and auto-analysis settings",
+      "loading": "Loading...",
+      "analysisMode": {
+        "title": "Default Analysis Mode",
+        "desc": "Can be changed on the meeting form. This sets the default.",
+        "smart": {
+          "label": "Smart Analysis",
+          "desc": "Updates only changed fields compared to existing CPS"
+        },
+        "full": {
+          "label": "Full Re-analysis",
+          "desc": "Re-analyzes all meetings from scratch"
+        }
+      },
+      "autoAnalyze": {
+        "title": "Auto-analyze after saving",
+        "desc": "Automatically start analysis when a meeting is saved",
+        "toggle": "Enable auto-analysis",
+        "cps": "CPS analysis",
+        "prd": "PRD analysis"
+      },
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Saved ✓"
+    }
+  },
+  "landing": {
+    "nav": {
+      "login": "Log in",
+      "start": "Get started",
+      "dashboard": "Goto Dashboard"
+    },
+    "hero": {
+      "badge": "The first all-in-one platform for FDEs",
+      "h1a": "From meeting to dev-ready,",
+      "h1b": "it just flows.",
+      "sub": "Your customer meeting notes automatically transform into CPS → PRD → architecture. Eliminate repetitive documentation and focus on what matters.",
+      "cta1": "Get started free",
+      "cta2": "Watch demo",
+      "stat1": {
+        "unit": "min",
+        "label": "Meeting → CPS generation time"
+      },
+      "stat2": {
+        "label": "FDE hiring growth in 2025"
+      },
+      "stat3": {
+        "label": "Any LLM model supported"
+      }
+    },
+    "pipeline": {
+      "meeting": "Meeting",
+      "design": "Design",
+      "code": "Code"
+    },
+    "pain": {
+      "title": "Where does an FDE's time really go?",
+      "sub": "Even the best FDEs get stuck in documentation. flowFD gives that time back.",
+      "item1": {
+        "title": "Lost to administrative work",
+        "desc": "Even top FDEs spend 40–60% of their time on meeting notes, documentation, and status reports. Actual engineering gets what's left."
+      },
+      "item2": {
+        "unit": "days",
+        "title": "Meeting to PRD turnaround",
+        "desc": "Understanding context, structuring findings, writing docs, and sharing with the team takes days. Context fades while you wait."
+      },
+      "item3": {
+        "unit": "",
+        "title": "Customer projects to juggle",
+        "desc": "More projects mean more context collisions. Finding what was decided for which customer takes longer than it should."
+      }
+    },
+    "how": {
+      "title": "Record the meeting. The rest is automatic.",
+      "sub": "Input your notes in any format. flowFD structures, connects, and builds prototype from them.",
+      "step1": {
+        "title": "Capture meetings in any format",
+        "desc": "Brainstorm notes, transcripts, rough sketches — paste anything into the markdown editor. Add as many entries per day as you need.",
+        "tag": "Markdown editor · File upload"
+      },
+      "step2": {
+        "title": "CPS is generated and kept up to date",
+        "desc": "A Context-Problem-Solution document is created in the background the moment you save. Every new meeting triggers a review — only what needs changing gets updated.",
+        "tag": "Auto-analysis · Version history · Decision Log"
+      },
+      "step3": {
+        "title": "CPS flows into PRD, design, and prototype",
+        "desc": "PRD is drafted from CPS. Architecture and dev planning follow. No matter which LLM generates the prototype, the linter enforces consistent naming and style.",
+        "tag": "LangChain · Multi-model · Linter"
+      },
+      "step4": {
+        "title": "Sync everything to GitHub",
+        "desc": "Docs and prototype land in one GitHub repo. Review the diff, write a commit message, and push — on your terms.",
+        "tag": "Human-in-the-loop · Diff preview"
+      }
+    },
+    "why": {
+      "title": "Built specifically for FDEs",
+      "sub": "This isn't a generic project tool. It's designed around the FDE work cycle from end to end.",
+      "item1": {
+        "title": "Preserve first, judge later",
+        "desc": "Raw meeting notes are never modified. Something that seems irrelevant today might be the key insight tomorrow."
+      },
+      "item2": {
+        "title": "Same output from any LLM",
+        "desc": "Gemini, Claude, GPT — the linter enforces naming rules regardless. Switch models anytime without losing code consistency."
+      },
+      "item3": {
+        "title": "Complete project isolation",
+        "desc": "Handle multiple customers simultaneously without context bleed. Share knowledge within your team and search across all past projects."
+      },
+      "item4": {
+        "title": "Human-in-the-loop",
+        "desc": "Automation isn't everything. GitHub sync, manual CPS edits, model selection — every critical action is reviewed and triggered by a human."
+      }
+    },
+    "brand": {
+      "flow": {
+        "title": "Flow",
+        "desc": "An uninterrupted pipeline from meeting to prototype. The workflow moves naturally, without bottlenecks."
+      },
+      "fd": {
+        "desc": "Engineers embedded directly at customer sites. flowFD handles the operational overhead so FDEs can do what they do best."
+      }
+    },
+    "cta": {
+      "title": "Start with your next meeting",
+      "sub": "It takes 5 minutes to set up. No meeting gets left behind.",
+      "btn1": "Get started free",
+      "btn2": "Request a team demo"
+    }
+  },
+  "sync": {
+    "breadcrumb": {
+      "project": "Project",
+      "sync": "GitHub Sync"
+    },
+    "noRepo": "No GitHub repo configured",
+    "noRepoHint": "Enter a GitHub repo URL in the project settings",
+    "repo": "Repo",
+    "autoCommitOn": "Auto Commit enabled",
+    "manualSync": "Manual Sync",
+    "commitPlaceholder": "Enter commit message...",
+    "syncBtn": "Sync to GitHub",
+    "syncing": "Syncing...",
+    "syncSuccess": "Sync complete:",
+    "syncError": "Sync failed. Check your GitHub token and repo URL.",
+    "viewCommit": "View commit",
+    "filesToSync": "Files to commit",
+    "filesCount": " files",
+    "history": {
+      "title": "Sync History",
+      "empty": "No sync history yet"
+    }
+  },
+  "jobs": {
+    "title": "{count} active background jobs",
+    "active_summary": "Analyzing {count} jobs",
+    "status": {
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "types": {
+      "cps_analysis": "CPS Pipeline Analysis",
+      "prd_generation": "PRD Generation",
+      "design_generation": "Architecture Design"
+    }
+  }
+}

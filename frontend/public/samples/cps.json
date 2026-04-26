@@ -1,0 +1,172 @@
+{
+      "created_at": "2026-04-20T05:13:10.171099+00:00",
+      "pending": {
+        "questions": [
+          "What is the exact daily Bulk API batch limit currently consumed by other Salesforce integrations?",
+          "Can we obtain a temporary IAM role with RDS:ModifyDBInstance permissions?",
+          "What is the specific data type and validation logic for B2B_Order_Total__c on the Salesforce side?"
+        ],
+        "insights": [
+          "The client's preference for manual DLQ review suggests a high degree of distrust in automated systems following their previous Airflow failure.",
+          "The strict 'no-Kafka/no-K8s' policy prioritizes operational simplicity over theoretical scalability."
+        ],
+        "solution_ideas": [
+          "Implement a 'dry-run' mode for the backfill script that validates mappings against the Salesforce API without committing data.",
+          "Develop a lightweight monitoring dashboard in CloudWatch to track SQS queue depth and Debezium lag."
+        ]
+      },
+      "assumptions": [
+        {
+          "content": "Sarah Kim's internal escalation will successfully bypass the AWS account owner's absence or the owner will provide approval before the end of Week 1.",
+          "risk_if_wrong": "The entire project timeline will shift by at least 10 days, jeopardizing the 6-week delivery mandate."
+        },
+        {
+          "content": "Salesforce Sales Cloud Enterprise Bulk API v2 limits are sufficient to handle a burst of 3 million records within a 3-hour window (approx. 16,666 records per minute).",
+          "risk_if_wrong": "The backfill will fail mid-process, requiring complex manual cleanup and a multi-day phased ingestion strategy."
+        },
+        {
+          "content": "The existing RDS PostgreSQL 14 instance has sufficient disk space and performance headroom to handle the additional storage and CPU overhead required for logical replication slots.",
+          "risk_if_wrong": "Enabling logical replication could lead to storage exhaustion if the replication slot becomes 'stuck,' causing a full production database outage."
+        }
+      ],
+      "context": {
+        "environment": "The core technical stack is anchored on AWS RDS PostgreSQL 14, hosting approximately 50 million records, with the application layer on AWS ECS. Due to a lean engineering team of three backend engineers and no dedicated data engineers, there is a strict mandate against adopting complex orchestration like Kubernetes or Kafka. The target system is Salesforce Sales Cloud Enterprise, requiring updates to custom Opportunity fields: B2B_Order_Total__c and Last_Order_Date__c. The approved architecture leverages PostgreSQL WAL for Change Data Capture (CDC), with Debezium Standalone on ECS, AWS SQS for brokering, and a custom Order Sync Service on ECS using Salesforce Bulk API v2.",
+        "background": "RetailMax, a prominent mid-market e-commerce platform serving 2 million monthly active users, faces a fragmented data ecosystem where Shopify, a PostgreSQL-based Order Management System (OMS), and Salesforce CRM are disconnected. This fragmentation severely impedes the marketing and sales teams from executing sophisticated data-driven B2B engagement strategies. Previous internal attempts to address this data silo issue using Airflow-based ETL processes resulted in severe production database locking and critical outages during peak operational loads, leading to a high degree of organizational caution and risk aversion regarding new data integration projects.",
+        "constraints": "The project is strictly constrained by a 6-week delivery window and a 'no-touch' policy for Shopify storefront logic. A critical technical dependency exists on enabling logical replication on AWS RDS, which is currently blocked until April 21st due to the AWS account owner's absence. Furthermore, Salesforce Bulk API v2 rate limits constrain the historical backfill of 3 million records, which must occur within a low-traffic Sunday morning window (estimated 2-3 hours).",
+        "stakeholders": "Sarah Kim (CTO & Project Lead) provides executive sponsorship and oversees infrastructure. David Park (Head of Data & Technical Lead) defines performance benchmarks, including the 5-minute latency requirement. James Lee (DevOps Engineer) manages RDS configuration and Debezium deployment. Monica Choi (Sales Ops Lead) handles Salesforce-side integration, field mapping, and provisioning OAuth credentials. Alex (FDE/Design Lead) is accountable for the architectural design, sync service implementation, and the backfill script."
+      },
+      "risks": {
+        "business": [
+          "The project has a single point of failure regarding infrastructure access (the AWS account owner), which could stall the team for over a week.",
+          "The lean engineering team may struggle to maintain the new CDC infrastructure alongside existing product roadmap responsibilities.",
+          "Loss of stakeholder confidence if the project repeats the performance failures of the previous Airflow-based attempt."
+        ],
+        "technical": [
+          "Potential for 'WAL bloat' if the Debezium connector stops consuming changes, leading to RDS storage exhaustion.",
+          "Risk of message ordering issues in SQS if not using FIFO queues, potentially updating Salesforce with stale data.",
+          "Salesforce Bulk API v2 concurrency limits might be reached if batch sizes are not tuned correctly for the 3-million-record backfill."
+        ]
+      },
+      "decision_log": [
+        {
+          "meeting_id": "2026-04-01",
+          "reason": "Initial discovery identified B2B order sync as the priority over a full Customer 360 view.",
+          "changed": "Project Scope"
+        },
+        {
+          "meeting_id": "2026-04-06",
+          "reason": "Switched from Kafka-based CDC to SQS-based CDC to accommodate the team's lack of Kafka experience and ECS environment.",
+          "changed": "Architecture Design"
+        },
+        {
+          "meeting_id": "2026-04-10",
+          "reason": "Defined backfill scope as the last 12 months (~3M rows) to be performed during a Sunday window.",
+          "changed": "Backfill Strategy"
+        },
+        {
+          "meeting_id": "EQoLSdyFoKvpopwBk6RJ",
+          "reason": "Defined 12-month backfill window and manual DLQ review strategy to manage operational risk.",
+          "changed": "Backfill Scope & Error Handling"
+        },
+        {
+          "meeting_id": "EQoLSdyFoKvpopwBk6RJ",
+          "reason": "Defined 12-month backfill window and manual DLQ review strategy to manage operational risk for the lean team.",
+          "changed": "Backfill Scope & Error Handling"
+        },
+        {
+          "meeting_id": "2026-04-01",
+          "reason": "Initial discovery identified B2B order sync as the priority over a full Customer 360 view.",
+          "changed": "Project Scope"
+        },
+        {
+          "meeting_id": "2026-04-06",
+          "reason": "Switched from Kafka-based CDC to SQS-based CDC to accommodate the team's lack of Kafka experience.",
+          "changed": "Architecture Design"
+        },
+        {
+          "meeting_id": "EQoLSdyFoKvpopwBk6RJ",
+          "reason": "Defined 12-month backfill window and manual DLQ review strategy to manage operational risk for the lean team.",
+          "changed": "Backfill Scope & Error Handling"
+        },
+        {
+          "meeting_id": "2026-04-01",
+          "reason": "Initial discovery identified B2B order sync as the priority over a full Customer 360 view.",
+          "changed": "Project Scope"
+        },
+        {
+          "meeting_id": "2026-04-06",
+          "reason": "Switched from Kafka-based CDC to SQS-based CDC to accommodate the team's lack of Kafka experience.",
+          "changed": "Architecture Design"
+        },
+        {
+          "meeting_id": "EQoLSdyFoKvpopwBk6RJ",
+          "reason": "Defined 12-month backfill window and manual DLQ review strategy to manage operational risk for the lean team.",
+          "changed": "Backfill Scope & Error Handling"
+        },
+        {
+          "meeting_id": "2026-04-01",
+          "reason": "Initial discovery identified B2B order sync as the priority over a full Customer 360 view.",
+          "changed": "Project Scope"
+        },
+        {
+          "meeting_id": "2026-04-06",
+          "reason": "Switched from Kafka-based CDC to SQS-based CDC to accommodate the team's lack of Kafka experience and ECS environment.",
+          "changed": "Architecture Design"
+        },
+        {
+          "meeting_id": "EQoLSdyFoKvpopwBk6RJ",
+          "reason": "Defined 12-month backfill window and manual DLQ review strategy to manage operational risk for the lean team.",
+          "changed": "Backfill Scope & Error Handling"
+        }
+      ],
+      "meta": {
+        "project_id": "XyzgH9j09IfkEwbJKCz4",
+        "change_type": "auto",
+        "changed_fields": [
+          "context",
+          "problem",
+          "solution",
+          "assumptions",
+          "out_of_scope",
+          "risks",
+          "pending"
+        ],
+        "last_updated": "2026-04-20T05:13:10.170889+00:00",
+        "client": "RetailMax ",
+        "source_meetings": [
+          "EDDEb86Bqk4jyjZGtpqB",
+          "vUAoMrcFQe8ZEbRk16AB",
+          "EQoLSdyFoKvpopwBk6RJ",
+          "EQoLSdyFoKvpopwBk6RJ",
+          "EQoLSdyFoKvpopwBk6RJ",
+          "EQoLSdyFoKvpopwBk6RJ",
+          "EQoLSdyFoKvpopwBk6RJ",
+          "EQoLSdyFoKvpopwBk6RJ"
+        ],
+        "version": "1.5.0"
+      },
+      "problem": {
+        "technical_problem": "The technical architecture is currently paralyzed by a configuration-level dependency: the production PostgreSQL RDS instance lacks logical replication enablement, which is a prerequisite for the Debezium-based CDC pipeline. Furthermore, the plan to ingest 3 million historical records into Salesforce via the Bulk API v2 within a narrow window introduces a high risk of hitting governor limits. The current error-handling strategy—relying on manual review of a Dead Letter Queue (DLQ)—lacks automated idempotency checks and sophisticated retry logic to handle transient failures during the high-volume backfill phase.",
+        "root_cause": {
+          "content": "The fundamental root cause is a critical dependency on a single AWS account owner for infrastructure approvals, creating a single point of failure. This is compounded by a legacy infrastructure governance model that lacks automated, peer-reviewed Infrastructure-as-Code (IaC) workflows, making the system brittle to personnel availability for foundational technical changes like enabling logical replication.",
+          "confidence": "confirmed"
+        },
+        "business_problem": "RetailMax is unable to provide its sales and marketing teams with real-time, accurate B2B customer insights, specifically total order values and last purchase dates. This data gap leads to stale customer profiles, inaccurate sales forecasting, and missed opportunities for high-value account nurturing. The current administrative bottleneck regarding AWS permissions is further delaying the strategic objective of becoming a data-driven B2B organization.",
+        "impact": "The most immediate impact is the probable delay of 'Week 1' activities, which could cascade throughout the entire 6-week project timeline. This delay prolongs the period of data inconsistency in Salesforce, hindering the sales team's ability to identify timely opportunities and potentially resulting in lost revenue from high-value B2B accounts during upcoming marketing pushes. Each day of delay represents a lost opportunity for improved data-driven decision-making."
+      },
+      "out_of_scope": [
+        "Synchronization of order data older than 12 months.",
+        "Any modifications to the core Shopify storefront logic or database schema.",
+        "Implementation of automated retry logic with exponential backoff (deferred to post-launch).",
+        "Deployment of any container orchestration or messaging middleware outside of AWS ECS and SQS (e.g., Kubernetes, Kafka)."
+      ],
+      "solution": {
+        "hypothesis": {
+          "content": "By decoupling data extraction (Debezium) from ingestion (Salesforce Sync Service) using SQS as a persistent buffer, the system will achieve the required 5-minute end-to-end latency while remaining within Salesforce Bulk API limits, provided that the backfill process is carefully throttled and the RDS logical replication overhead does not exceed 10% of CPU/IOPS capacity.",
+          "confidence": "probable"
+        },
+        "success_criteria": "1. Successful synchronization of B2B_Order_Total__c and Last_Order_Date__c fields for all active B2B accounts. 2. End-to-end data latency maintained under 5 minutes for real-time updates. 3. Completion of the 3-million-record historical backfill within a 3-hour window without triggering Salesforce rate limits. 4. Zero production database outages or significant performance degradation during implementation.",
+        "proposed_by_client": "The client requested a one-time historical backfill of the last 12 months of B2B order data (approx. 3M records) to be executed during a Sunday morning window. They mandated a manual error-handling process where failed records are routed to an SQS dead-letter queue (DLQ) for human review, with Slack notifications triggered only after five consecutive failures for a specific account ID.",
+        "proposed_by_fde": "The FDE proposed a robust, event-driven CDC architecture utilizing Debezium Standalone on AWS ECS to stream PostgreSQL WAL logs to AWS SQS. This is coupled with a custom-built Order Sync Service on ECS that leverages the Salesforce Bulk API v2. This design specifically avoids direct database queries to prevent the production locking issues experienced in previous Airflow-based attempts."
+      }
+    }

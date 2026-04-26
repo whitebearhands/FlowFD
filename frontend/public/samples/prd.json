@@ -1,0 +1,175 @@
+{
+      "created_at": "2026-04-20T05:13:57.168189+00:00",
+      "content": {
+        "overview": "This project aims to implement a high-performance, event-driven data synchronization pipeline to bridge the gap between RetailMax's PostgreSQL-based Order Management System and Salesforce Sales Cloud. By leveraging Change Data Capture (CDC) via Debezium and AWS SQS, the system will provide real-time updates for critical B2B metrics (B2B_Order_Total__c and Last_Order_Date__c) while avoiding the production database locking issues encountered in previous ETL attempts. The project also includes a high-throughput historical backfill engine to migrate 3 million records within a strict 3-hour maintenance window.",
+        "goals": {
+          "success_metrics": [
+            {
+              "before": "Inconsistent latency often exceeding several hours or failing entirely.",
+              "after": "Consistent end-to-end latency of less than 5 minutes from database commit to Salesforce visibility.",
+              "metric": "End-to-End Data Synchronization Latency"
+            },
+            {
+              "before": "Previous attempts resulted in production timeouts or exceeded maintenance windows.",
+              "after": "Successful ingestion of 3,000,000 records within a 3-hour window (~277 records/sec).",
+              "metric": "Historical Backfill Completion Time"
+            },
+            {
+              "before": "High CPU spikes and table-level locking during data extraction.",
+              "after": "Logical replication overhead strictly maintained below 10% of total RDS CPU/IOPS capacity.",
+              "metric": "Production Database Resource Overhead"
+            }
+          ],
+          "business_goals": [
+            "Establish a high-performance, event-driven data pipeline to synchronize critical B2B order metrics from PostgreSQL to Salesforce.",
+            "Execute a massive historical backfill of 3 million records within a 3-hour maintenance window without disrupting operations.",
+            "Eliminate production database performance risks by transitioning to a decoupled CDC architecture using Debezium and AWS SQS.",
+            "Improve operational reliability through a robust error-handling framework utilizing Dead Letter Queues (DLQ) and Slack alerting."
+          ]
+        },
+        "users": [
+          {
+            "type": "Sarah Kim (CTO & Project Lead)",
+            "pain": "Lack of real-time overview of technical progress and infrastructure bottlenecks.",
+            "goal": "Ensure infrastructure reliability and project delivery within the 6-week mandate.",
+            "frequency": "Daily"
+          },
+          {
+            "type": "David Park (Head of Data)",
+            "pain": "Difficulty in diagnosing performance bottlenecks in real-time data flows.",
+            "goal": "Meet the 5-minute latency SLA and ensure data integrity across systems.",
+            "frequency": "Daily"
+          },
+          {
+            "type": "James Lee (DevOps Engineer)",
+            "pain": "Operational complexities related to RDS logical replication and WAL management.",
+            "goal": "Maintain robust RDS and Debezium infrastructure on AWS ECS.",
+            "frequency": "Daily"
+          }
+        ],
+        "scope": {
+          "out_of_scope": [
+            "Synchronization of order data older than 12 months.",
+            "Modifications to core Shopify storefront logic.",
+            "Automated retry logic with exponential backoff.",
+            "Deployment of Kafka or Kubernetes (strictly ECS/SQS only)."
+          ],
+          "in_scope": [
+            {
+              "fr_id": "FR-CDC-001",
+              "description": "Real-time Change Data Capture from PostgreSQL WAL logs using Debezium.",
+              "priority": "must"
+            },
+            {
+              "fr_id": "FR-SYN-002",
+              "description": "Salesforce synchronization service for B2B_Order_Total__c and Last_Order_Date__c.",
+              "priority": "must"
+            },
+            {
+              "fr_id": "FR-BKF-004",
+              "description": "High-throughput historical backfill engine for 3M records.",
+              "priority": "must"
+            },
+            {
+              "fr_id": "FR-ERR-006",
+              "description": "Dead Letter Queue (DLQ) for manual exception handling of failed records.",
+              "priority": "must"
+            }
+          ]
+        },
+        "non_functional": [
+          {
+            "category": "performance",
+            "requirement": "End-to-end data latency from PostgreSQL commit to Salesforce visibility must be under 5 minutes.",
+            "metric": "< 5 minutes"
+          },
+          {
+            "category": "reliability",
+            "requirement": "Use SQS FIFO queues to guarantee message ordering and prevent stale data updates in Salesforce.",
+            "metric": "FIFO Ordering"
+          },
+          {
+            "category": "scalability",
+            "requirement": "The pipeline must handle a 2x increase in CDC volume over 6 months without architectural changes.",
+            "metric": "2x Volume"
+          }
+        ],
+        "features": [
+          {
+            "description": "Implement Debezium Standalone on AWS ECS to monitor PostgreSQL Write-Ahead Logs (WAL). Capture INSERT/UPDATE events for B2B orders and stream them as JSON to AWS SQS. Logical replication overhead must remain below 10% of RDS capacity.",
+            "id": "FR-CDC-001",
+            "title": "Real-time Change Data Capture (CDC) via Debezium",
+            "priority": "Must"
+          },
+          {
+            "description": "An ECS-based service to consume SQS events and update 'B2B_Order_Total__c' and 'Last_Order_Date__c' in Salesforce using Bulk API v2. Must maintain < 5-minute end-to-end latency.",
+            "id": "FR-SYN-002",
+            "title": "Salesforce Metric Synchronization Service",
+            "priority": "Must"
+          },
+          {
+            "description": "Automatically create a new Salesforce Account record if a Shopify order is associated with a customer ID that does not exist in the CRM, using predefined attributes (Email, Name, Shopify ID).",
+            "id": "FR-ACC-003",
+            "title": "Automated Salesforce Account Provisioning",
+            "priority": "Must"
+          },
+          {
+            "description": "A specialized script to process 3,000,000 records within a 3-hour Sunday window. Must include throttling to respect Salesforce Bulk API v2 limits and prevent 429 errors.",
+            "id": "FR-BKF-004",
+            "title": "High-Throughput Historical Backfill Engine",
+            "priority": "Must"
+          },
+          {
+            "description": "A configuration mode for the backfill engine that performs extraction and mapping validation against Salesforce schema without committing the final API call.",
+            "id": "FR-CFG-005",
+            "title": "Backfill Simulation (Dry-Run) Mode",
+            "priority": "Must"
+          },
+          {
+            "description": "Route failed synchronization records to an SQS DLQ with full error metadata. This supports the requirement for manual review by the lean engineering team.",
+            "id": "FR-ERR-006",
+            "title": "Dead Letter Queue (DLQ) for Manual Exception Handling",
+            "priority": "Must"
+          },
+          {
+            "description": "Trigger Slack notifications only after 5 consecutive failures for the same Salesforce Account ID to minimize alert fatigue while escalating persistent issues.",
+            "id": "FR-ALT-007",
+            "title": "Intelligent Slack Alerting with Failure Thresholds",
+            "priority": "Should"
+          },
+          {
+            "description": "Configure CloudWatch dashboards to track SQS Queue Depth and Debezium Replication Lag, ensuring visibility into the 5-minute SLA compliance.",
+            "id": "FR-MON-008",
+            "title": "Operational Health Monitoring via CloudWatch",
+            "priority": "Should"
+          }
+        ],
+        "open_questions": [
+          "What is the exact daily Bulk API batch limit currently consumed by other Salesforce integrations?",
+          "Can we obtain a temporary IAM role with RDS:ModifyDBInstance permissions to bypass the account owner bottleneck?",
+          "What is the specific data type and validation logic for B2B_Order_Total__c on the Salesforce side?"
+        ],
+        "risks": [
+          {
+            "description": "Potential for WAL bloat on RDS if Debezium stops consuming, leading to storage exhaustion.",
+            "fr_ids": [
+              "FR-CDC-001"
+            ]
+          },
+          {
+            "description": "Exceeding Salesforce Bulk API v2 limits during the 3M record backfill burst.",
+            "fr_ids": [
+              "FR-BKF-004"
+            ]
+          },
+          {
+            "description": "Project delay due to AWS account owner absence blocking logical replication enablement.",
+            "fr_ids": [
+              "FR-CDC-001"
+            ]
+          }
+        ]
+      },
+      "change_type": "auto",
+      "source_cps_version": "1.5.0"
+    }

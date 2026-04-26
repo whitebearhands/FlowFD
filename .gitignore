@@ -1,0 +1,97 @@
+# ================================
+# FlowFD monorepo .gitignore
+# ================================
+
+# --------------------------------
+# 환경 변수 (절대 커밋 금지)
+# --------------------------------
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+*.env
+
+# --------------------------------
+# Frontend (Next.js)
+# --------------------------------
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/node_modules/
+frontend/.npm
+frontend/.yarn/
+frontend/.pnp.*
+frontend/.env
+frontend/.env.local
+frontend/apphosting.yaml
+# Next.js 캐시
+frontend/.next/cache/
+
+# Vercel
+frontend/.vercel
+frontend/.firebase
+
+# TypeScript
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+
+# --------------------------------
+# Backend (Python / uv)
+# --------------------------------
+backend/.venv/
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.py[cod]
+backend/**/*.pyo
+backend/.ruff_cache/
+backend/.pytest_cache/
+backend/.mypy_cache/
+
+# uv
+backend/.python-version
+
+# 빌드
+backend/dist/
+backend/*.egg-info/
+backend/.env.local
+backend/.env
+
+
+# --------------------------------
+# Firebase
+# --------------------------------
+# 서비스 계정 키 (절대 커밋 금지)
+*service-account*.json
+*firebase-adminsdk*.json
+serviceAccountKey.json
+firebase-debug.log
+.firebase/
+
+# --------------------------------
+# IDE
+# --------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --------------------------------
+# 로그
+# --------------------------------
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --------------------------------
+# 테스트 커버리지
+# --------------------------------
+coverage/
+.coverage
+htmlcov/
+serviceAccountKey.json

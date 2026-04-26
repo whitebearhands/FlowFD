@@ -1,0 +1,683 @@
+{
+      "updated_at": "2026-04-19T10:18:32.897030+00:00",
+      "architecture": {
+        "api_spec": {
+          "auth": "All administrative and operational endpoints are secured using a combination of AWS IAM roles for service-to-service authentication and a custom API Key header (X-API-KEY) for manual triggers. The API Key is securely managed and rotated via AWS Secrets Manager. Furthermore, all traffic must be encrypted using TLS 1.2 or higher, and access is restricted to the internal VPC CIDR range to prevent unauthorized external access to the synchronization logic.",
+          "endpoints": [
+            {
+              "path": "/actuator/health",
+              "domain": "Infrastructure/Monitoring",
+              "description": "Provides a comprehensive health status of the Salesforce Sync Service. It performs deep checks on downstream dependencies including PostgreSQL connectivity, SQS queue accessibility, and Salesforce API availability. This endpoint is utilized by AWS ECS Fargate's target group health checks to manage task lifecycle and ensure high availability across multiple Availability Zones.",
+              "method": "GET"
+            },
+            {
+              "path": "/api/v1/sync/backfill",
+              "domain": "Data Migration",
+              "description": "Initiates the historical data migration process for the 3 million legacy records stored in the PostgreSQL OMS. This endpoint triggers a specialized routine that utilizes the Salesforce Bulk API v2 to maximize throughput. It is designed to be executed during the Sunday maintenance window to ensure completion within the 3-hour target without impacting real-time CDC operations.",
+              "method": "POST"
+            },
+            {
+              "path": "/api/v1/sync/backfill/status/{jobId}",
+              "domain": "Data Migration",
+              "description": "Retrieves the real-time progress and detailed statistics of a specific backfill job. It returns the number of records processed, failed records, and the estimated time to completion. This allows the Sales Ops team to monitor the 3-million record migration and verify if the system is meeting the performance benchmarks defined in the PRD.",
+              "method": "GET"
+            },
+            {
+              "path": "/api/v1/sync/dlq/messages",
+              "domain": "Operations/Support",
+              "description": "Allows administrators to inspect messages currently residing in the Amazon SQS Dead-Letter Queue (DLQ). It provides the raw JSON payload of the failed order events along with the associated error metadata (e.g., Salesforce validation errors or rate limit exceptions). This is essential for the Sales Ops team to perform manual root cause analysis on persistent failures.",
+              "method": "GET"
+            },
+            {
+              "path": "/api/v1/sync/dlq/replay",
+              "domain": "Operations/Support",
+              "description": "Facilitates the recovery of failed synchronization events by moving messages from the DLQ back to the primary SQS buffer. This endpoint is used after the underlying issue (such as a Salesforce configuration change or a temporary network outage) has been resolved, ensuring that no B2B order data is permanently lost and the < 5-minute latency requirement is eventually met for these records.",
+              "method": "POST"
+            },
+            {
+              "path": "/api/v1/sync/circuit-breaker/status",
+              "domain": "Monitoring/Resilience",
+              "description": "Exposes the current operational state (CLOSED, OPEN, or HALF_OPEN) of the Resilience4j circuit breaker protecting the Salesforce integration. It includes metrics such as the current failure rate and the number of calls currently being permitted. This visibility is crucial for understanding system behavior during Salesforce API outages or when rate limits are exceeded.",
+              "method": "GET"
+            },
+            {
+              "path": "/api/v1/sync/order/{orderId}",
+              "domain": "Data Synchronization",
+              "description": "Triggers a manual, high-priority synchronization for a specific B2B order by its unique identifier. This endpoint bypasses the standard SQS buffer to immediately fetch the latest state from PostgreSQL, calculate the 'B2B_Order_Total__c' (net amount after returns), and push it to Salesforce. It is intended for emergency updates or troubleshooting specific high-value transactions.",
+              "method": "POST"
+            }
+          ]
+        },
+        "security_design": {
+          "api_security": {
+            "details": "The API layer is hardened against common attack vectors and system instability. 1. Resilience and Stability: A Resilience4j Circuit Breaker is integrated into the Salesforce client. If Salesforce API latency exceeds 5 seconds or the failure rate hits 50%, the circuit opens to prevent resource exhaustion in the Sync Service, with status monitored via the /api/v1/sync/circuit-breaker/status endpoint. 2. Rate Limiting and Throttling: To comply with Salesforce Bulk API v2 limits and protect the OMS database, the /api/v1/sync/backfill endpoint implements a leaky-bucket rate limiting algorithm, ensuring that the 3 million legacy records are processed at a steady pace that does not exceed 1,000 records per second. 3. Input Validation: All manual trigger endpoints, such as /api/v1/sync/order/{orderId}, perform strict schema validation and sanitization to prevent SQL injection or IDOR (Insecure Direct Object Reference) attacks. 4. Dead-Letter Queue (DLQ) Management: The SQS DLQ serves as a security and reliability buffer; failed messages are isolated for manual inspection via /api/v1/sync/dlq/messages, preventing a 'poison pill' message from repeatedly crashing the consumer service and ensuring 100% data delivery consistency."
+          },
+          "data_protection": {
+            "details": "Data protection is prioritized both at rest and in transit to safeguard sensitive B2B transaction records. 1. Encryption in Transit: All internal and external communication is encrypted using TLS 1.2 or higher. This includes the Debezium-to-PostgreSQL stream, the Sync Service-to-SQS path, and the final push to Salesforce via HTTPS. 2. Encryption at Rest: All persistent storage layers, including the PostgreSQL RDS instance, SQS queues (including the DLQ), and AWS Secrets Manager, utilize AES-256 encryption managed by AWS KMS (Key Management Service) with Customer Master Keys (CMKs). 3. Data Integrity: To ensure the accuracy of the 'B2B_Order_Total__c' field in Salesforce, the system implements a checksum-based verification during the CDC process. The 'updated_at' timestamp in PostgreSQL acts as a versioning mechanism, ensuring that the Sync Service only processes the most recent state of an order. 4. Sensitive Data Handling: While the primary sync focus is on financial totals, any PII within the 'customers' table (like company_name) is treated as sensitive and is never logged in plaintext within the application logs or CloudWatch."
+          },
+          "authorization": {
+            "details": "Authorization is enforced through a 'Defense in Depth' approach combining network-level restrictions and fine-grained application-level permissions. 1. Network Isolation: Access to all operational and administrative APIs is strictly restricted to the internal VPC CIDR range. Security Groups are configured to drop any traffic originating from outside the trusted private subnets. 2. Role-Based Access Control (RBAC): Within the application, logic is implemented to distinguish between 'Sales Ops' and 'System Admin' roles. Sales Ops users are authorized only for read-only monitoring endpoints (e.g., /api/v1/sync/backfill/status, /api/v1/sync/dlq/messages), while System Admin roles are required for state-changing operations like DLQ replays or manual backfills. 3. Database Least Privilege: The Debezium CDC connector and the Sync Service use distinct database users. The Debezium user is granted only the 'REPLICATION' attribute and SELECT permissions on the specific tables (customers, orders, order_items) required for the WAL stream, while the Sync Service user is restricted to read-only access for manual sync lookups, preventing unauthorized data modification at the source."
+          },
+          "authentication": {
+            "details": "The system implements a multi-layered authentication strategy tailored for both automated service-to-service communication and manual operational triggers. 1. Service-to-Service: The Salesforce Sync Service, hosted on AWS ECS Fargate, utilizes AWS IAM Task Roles to securely interact with AWS resources like SQS, Secrets Manager, and RDS without hardcoded credentials. For the connection to Salesforce, the service employs the OAuth 2.0 JWT Bearer Flow. This involves a private key stored in AWS Secrets Manager to sign a JWT, which is exchanged for an access token from Salesforce's identity provider, ensuring a passwordless and highly secure integration. 2. Manual/Operational Access: Administrative endpoints (e.g., /api/v1/sync/backfill, /api/v1/sync/dlq/replay) require a custom 'X-API-KEY' header. These keys are managed via AWS Secrets Manager with an automated 30-day rotation policy triggered by a Lambda function. 3. Infrastructure Level: All database connections from the Sync Service to the PostgreSQL OMS utilize IAM Database Authentication, eliminating the need for static DB passwords and leveraging short-lived tokens for enhanced security."
+          }
+        },
+        "frontend_arch": {
+          "routing": [
+            {
+              "path": "/orders",
+              "component": "OrderListPage",
+              "description": "Displays a list of all orders, supporting filtering and sorting. This page will fetch order data from Salesforce."
+            },
+            {
+              "path": "/orders/:orderId",
+              "component": "OrderDetailPage",
+              "description": "Shows detailed information for a specific order, including line items and status. It fetches data for a single order based on the provided orderId."
+            },
+            {
+              "path": "/sync-status",
+              "component": "SyncStatusPage",
+              "description": "Provides a dashboard view of the real-time data synchronization status between PostgreSQL and Salesforce. It will display metrics like E2E latency, SQS queue depth, and Salesforce API usage."
+            },
+            {
+              "path": "/dlq-monitor",
+              "component": "DLQMonitorPage",
+              "description": "A dedicated page for monitoring the Dead-Letter Queue (DLQ). It allows users to view failed messages, their error details, and initiate manual reprocessing or correction procedures."
+            }
+          ],
+          "components": [
+            {
+              "description": "A React component that renders a paginated and sortable list of orders fetched from Salesforce. It will utilize a data fetching library like React Query to manage server state and provide features like background refetching and caching.",
+              "name": "OrderListPage"
+            },
+            {
+              "description": "A React component displaying comprehensive details of a single order. It will fetch order-specific data and potentially related data like customer information or shipment details from Salesforce.",
+              "name": "OrderDetailPage"
+            },
+            {
+              "description": "A comprehensive React-based dashboard that visualizes real-time metrics from the MetricsExportRouter, including E2E latency, SQS depth, and Salesforce API health.",
+              "name": "SyncStatusDashboard"
+            },
+            {
+              "description": "A component within the DLQMonitorPage that lists messages currently residing in the Dead-Letter Queue. It will display essential information for each failed message, such as the payload, error timestamp, and error reason.",
+              "name": "DLQMessageList"
+            },
+            {
+              "description": "A component that shows the full details of a selected DLQ message, including the original payload and detailed error stack trace. It will also provide actions for manual reprocessing or marking as resolved.",
+              "name": "DLQMessageDetail"
+            },
+            {
+              "description": "A utility component or hook responsible for transforming raw order data from PostgreSQL (as captured by Debezium) into the format required by Salesforce, including the calculation of 'B2B_Order_Total__c' and 'Last_Order_Date__c'.",
+              "name": "OrderDataMapper"
+            },
+            {
+              "description": "A wrapper or service responsible for interacting with the Salesforce API. It will handle authentication, request formatting, and response parsing for both real-time updates and Bulk API v2 operations.",
+              "name": "SalesforceApiClient"
+            },
+            {
+              "description": "An administrative interface allowing Sales Ops to view failed payloads, inspect error stack traces from the DeadLetterQueueService, and trigger manual replays.",
+              "name": "DLQManagementConsole"
+            }
+          ],
+          "api_dependencies": [
+            {
+              "description": "Used by OrderListPage and OrderDetail to query and retrieve order data from Salesforce. This endpoint will be utilized for fetching lists of orders and details of a specific order, leveraging SOQL queries.",
+              "endpoint": "/services/data/v59.0/query",
+              "method": "POST"
+            },
+            {
+              "description": "Potentially used by Sync Service for efficient real-time updates if multiple operations can be batched. However, the primary real-time updates will likely use individual REST API calls or the Composite API for related records.",
+              "endpoint": "/services/data/v59.0/composite/batch",
+              "method": "POST"
+            },
+            {
+              "description": "Used by the Salesforce Sync Service during the backfill process (FR-SAL-002) to create jobs for the Salesforce Bulk API v2, enabling high-volume data ingestion of historical orders.",
+              "endpoint": "/services/data/v59.0/jobs/ingest",
+              "method": "POST"
+            },
+            {
+              "description": "Used by the Salesforce Sync Service to upload data batches to a Bulk API v2 job during the backfill process.",
+              "endpoint": "/services/data/v59.0/jobs/ingest/{jobId}/rows",
+              "method": "PUT"
+            },
+            {
+              "description": "Used by the Salesforce Sync Service to close or manage the state of a Bulk API v2 job during the backfill process.",
+              "endpoint": "/services/data/v59.0/jobs/ingest/{jobId}",
+              "method": "PATCH"
+            },
+            {
+              "description": "Exposed by the backend synchronization service to provide real-time metrics for the SyncStatusDashboard component. This includes E2E latency, SQS queue depth, and processing rates.",
+              "endpoint": "/api/v1/sync/status",
+              "method": "GET"
+            },
+            {
+              "description": "Exposed by the backend service to retrieve a list of messages from the Dead-Letter Queue for the DLQMonitorPage and DLQMessageList components.",
+              "endpoint": "/api/v1/dlq/messages",
+              "method": "GET"
+            },
+            {
+              "description": "Exposed by the backend service to trigger manual reprocessing of a specific message from the DLQ, as initiated by the Sales Ops team via the DLQMessageDetail component.",
+              "endpoint": "/api/v1/dlq/messages/{messageId}/reprocess",
+              "method": "POST"
+            },
+            {
+              "description": "Exposed by the backend service to mark a specific DLQ message as resolved or corrected, preventing it from being reprocessed automatically. This action is initiated from the DLQMessageDetail component.",
+              "endpoint": "/api/v1/dlq/messages/{messageId}/resolve",
+              "method": "POST"
+            }
+          ],
+          "state_management": "For managing client-side state, we will adopt a hybrid approach leveraging React's built-in Context API for global state like authentication status and user preferences, and React Query for server-state management. React Query will be instrumental in handling data fetching, caching, synchronization, and invalidation for all data originating from Salesforce. This includes managing the state of orders lists, individual order details, and synchronization monitoring metrics. Local component state will be managed using `useState` and `useReducer` for UI-specific states. The `OrderDataMapper` will likely be implemented as a custom hook or a utility function used within components or data fetching logic, rather than a global state concern."
+        },
+        "system_architecture": {
+          "tech_stack": {
+            "Backend_Language": "Java 17 with Spring Boot - Selected for its robust ecosystem, excellent Salesforce SDK support, and mature multi-threading capabilities for high-throughput processing.",
+            "CDC_Engine": "Debezium - The industry standard for log-based CDC, allowing for zero-impact data extraction compared to traditional ETL.",
+            "Monitoring": "AWS CloudWatch & Grafana - Essential for tracking the 5-minute E2E latency metric and alerting on DLQ growth.",
+            "Messaging": "Amazon SQS - Provides a serverless, cost-effective queuing mechanism that handles the 'spiky' nature of order data without managing Kafka clusters.",
+            "IaC": "Terraform - Used to ensure environment parity (Dev/Staging/Prod) and to manage the complex RDS parameter group changes required for CDC.",
+            "Caching": "Amazon ElastiCache for Redis - Selected for its managed high availability and seamless integration with ECS-based microservices to handle high-frequency lookups.",
+            "Infrastructure": "AWS (RDS, ECS Fargate, SQS, Secrets Manager) - Chosen for high availability, managed scaling, and seamless integration between components."
+          },
+          "data_flow": "The lifecycle of a data change begins when a B2B order is created or modified in the PostgreSQL OMS. Instead of a traditional polling query, the PostgreSQL engine writes this change to its Write-Ahead Log (WAL). The Debezium Connector, running on AWS ECS, tailors this log in real-time, capturing the 'before' and 'after' states of the row. These events are immediately pushed to an Amazon SQS queue, which serves as a resilient buffer. The Salesforce Sync Service polls the SQS queue; for each message, it performs a complex transformation to calculate the net order total (subtracting returns and cancellations) and identifies the 'Last_Order_Date__c'. Once transformed, the service checks the status of the Circuit Breaker; if healthy, it pushes the data to Salesforce via the REST API for real-time updates or batches them for the Bulk API v2 during backfill operations. If Salesforce returns a rate-limit error, the message is returned to the queue with an exponential backoff. Successfully processed messages are deleted from SQS, while persistent failures are moved to the DLQ for manual inspection by the Sales Ops team.",
+          "design_decisions": [
+            {
+              "decision": "Log-based CDC (Debezium) over Query-based Polling",
+              "reason": "Polling 50 million rows causes significant CPU spikes and table locks, risking OMS downtime. CDC reads the WAL, providing near-zero impact on the source DB and enabling the < 5-minute latency requirement."
+            },
+            {
+              "decision": "Asynchronous Buffering via Amazon SQS",
+              "reason": "Salesforce API has strict rate limits. SQS prevents data loss during 'burst' periods (like Black Friday) by holding messages until the Sync Service can safely process them within Salesforce's governor limits."
+            },
+            {
+              "decision": "Circuit Breaker Pattern in Sync Service",
+              "reason": "To prevent 'Head-of-line blocking' and cascading failures, the service will stop attempting Salesforce calls if the error rate exceeds a threshold, allowing the system to recover gracefully without losing data."
+            },
+            {
+              "decision": "Bulk API v2 for Historical Backfill",
+              "reason": "Standard REST APIs would take days to sync 3 million records and would likely exhaust the daily API quota. Bulk API v2 is optimized for large datasets and fits the 3-hour Sunday window."
+            }
+          ],
+          "components": [
+            {
+              "type": "Database",
+              "description": "The primary operational database for RetailMax's Order Management System (OMS), containing over 50 million order records. It serves as the single source of truth for B2B transactions.",
+              "responsibility": "Maintains transactional integrity for orders. It must have logical replication enabled (wal_level=logical) to allow Debezium to capture row-level changes without impacting query performance or causing table locks.",
+              "name": "PostgreSQL RDS (OMS)"
+            },
+            {
+              "type": "Worker",
+              "description": "A distributed service running on AWS ECS that monitors the PostgreSQL Write-Ahead Log (WAL) using the Outbox pattern or direct table streaming.",
+              "responsibility": "Continuously captures INSERT, UPDATE, and DELETE events from the 'orders' and 'order_items' tables. It transforms these low-level database changes into structured JSON events and publishes them to the messaging layer, ensuring zero-load on the production query engine.",
+              "name": "Debezium CDC Connector (ECS)"
+            },
+            {
+              "type": "Message Queue",
+              "description": "A highly scalable distributed message queuing service that acts as a buffer between the high-frequency CDC events and the Salesforce API limits.",
+              "responsibility": "Decouples the data capture from the data ingestion. It provides persistence for events, allows for parallel processing by the Sync Service, and manages retries through a Redrive Policy to the Dead-Letter Queue (DLQ).",
+              "name": "Amazon SQS (Event Buffer)"
+            },
+            {
+              "type": "Microservice",
+              "description": "A custom Java/Spring Boot application responsible for the core business logic, data transformation, and Salesforce integration.",
+              "responsibility": "Consumes messages from SQS, calculates the 'B2B_Order_Total__c' (net amount after returns/cancellations), maps fields to Salesforce objects, and executes API calls. It implements a Circuit Breaker to handle Salesforce API rate limits and downtime gracefully.",
+              "name": "Salesforce Sync Service (ECS)"
+            },
+            {
+              "type": "SaaS Platform",
+              "description": "The destination system for Sales and Marketing teams to access real-time order data.",
+              "responsibility": "Stores the synchronized order data in custom objects. It provides the Bulk API v2 endpoint for high-volume backfill operations and REST/SOAP APIs for real-time updates.",
+              "name": "Salesforce CRM (Target)"
+            },
+            {
+              "type": "Security Service",
+              "description": "A centralized credential management service.",
+              "responsibility": "Securely stores and rotates Salesforce OAuth2 client credentials and PostgreSQL connection strings, ensuring that sensitive data is never hardcoded in the application or Terraform scripts.",
+              "name": "AWS Secrets Manager"
+            },
+            {
+              "type": "Cache",
+              "description": "A high-performance, in-memory key-value store used to cache the mapping between PostgreSQL customer_id and Salesforce account_id.",
+              "responsibility": "Reduces the load on the PostgreSQL RDS instance by providing sub-millisecond latency for customer metadata lookups during the order transformation process. It implements a TTL-based eviction policy to ensure data eventual consistency.",
+              "name": "Amazon ElastiCache (Redis)"
+            }
+          ],
+          "deployment": {
+            "CI_CD": "GitHub Actions pipelines automate the Terraform plan/apply process. A critical deployment gate is set for April 21st to perform the mandatory RDS restart required to enable logical replication.",
+            "Architecture": "The system is deployed across multiple Availability Zones (AZs) within a VPC to ensure 99.9% availability. ECS Fargate is used for both Debezium and the Sync Service to eliminate server management overhead.",
+            "Backfill_Strategy": "The 3-million record backfill is scheduled during the Sunday maintenance window. It utilizes a dedicated ECS Task scaled horizontally to saturate the Salesforce Bulk API v2 limits, ensuring completion within the 3-hour target.",
+            "Security": "All data in transit is encrypted via TLS 1.2+, and data at rest in RDS and SQS is encrypted using AWS KMS (AES-256)."
+          }
+        },
+        "backend_arch": {
+          "external_integrations": [
+            {
+              "description": "The primary destination for all B2B order data. Integration is achieved via the REST API for real-time updates (latency < 5 mins) and Bulk API v2 for massive data loads. It requires OAuth2 JWT Bearer Flow for secure, server-to-server authentication without manual password management.",
+              "name": "Salesforce CRM (REST & Bulk API v2)"
+            },
+            {
+              "description": "Acts as the resilient messaging backbone between the Debezium CDC worker and the Sync Service. It provides the necessary decoupling to handle spikes in order volume (e.g., Black Friday) and ensures zero data loss by persisting events until they are successfully acknowledged by the target system.",
+              "name": "Amazon SQS (Event Bus)"
+            },
+            {
+              "description": "The centralized security vault for the entire architecture. It stores and automatically rotates the PostgreSQL master credentials and Salesforce API keys. The Sync Service integrates with it at startup and periodically thereafter to ensure it always uses the most current and secure credentials.",
+              "name": "AWS Secrets Manager"
+            },
+            {
+              "description": "The source of truth for the Order Management System. The integration is performed at the database log level (WAL) using the pgoutput plugin. This allows the system to capture every row-level change in the 'orders' and 'order_items' tables without impacting the performance of the production query engine.",
+              "name": "PostgreSQL RDS (Logical Replication)"
+            }
+          ],
+          "layers": {
+            "repositories": [
+              {
+                "description": "An abstraction layer for the Salesforce REST and Bulk v2 APIs. It handles low-level HTTP communication, OAuth2 token management, and automatic retries for transient 5xx errors. It encapsulates the complexities of Salesforce's governor limits and ensures all requests are properly authenticated using credentials from AWS Secrets Manager.",
+                "name": "SalesforceApiRepository"
+              },
+              {
+                "description": "A wrapper around the AWS SDK for SQS. It provides optimized methods for batch message retrieval and deletion, reducing the number of API calls to AWS. It also manages the long-polling configuration to minimize empty receives and reduce infrastructure costs.",
+                "name": "SqsClientRepository"
+              },
+              {
+                "description": "Responsible for securely fetching and caching sensitive configuration data from AWS Secrets Manager. This includes PostgreSQL connection strings, Salesforce client IDs, and client secrets. It implements a local TTL-based cache to reduce latency and API costs associated with frequent secret retrieval.",
+                "name": "SecretManagementRepository"
+              }
+            ],
+            "routers": [
+              {
+                "description": "Provides administrative REST endpoints to manage the synchronization lifecycle. This includes manual triggers for re-syncing specific order ranges, pausing or resuming the SQS consumer tasks during maintenance windows, and forcing a cache refresh for Salesforce metadata. It acts as the primary interface for DevOps teams to interact with the running ECS tasks.",
+                "name": "SyncControlRouter"
+              },
+              {
+                "description": "Exposes standard Liveness and Readiness probes required by AWS ECS Fargate. It performs deep health checks by verifying connectivity to Amazon SQS, the PostgreSQL RDS instance, and the Salesforce API endpoints, ensuring the container is fully operational before receiving traffic or starting message consumption.",
+                "name": "HealthCheckRouter"
+              },
+              {
+                "description": "Exposes application-level metrics in a format compatible with Prometheus and AWS CloudWatch. It tracks critical KPIs such as the end-to-end latency between PostgreSQL commit and Salesforce update, SQS message processing rates, and the current state of the Circuit Breaker (Closed, Open, or Half-Open).",
+                "name": "MetricsExportRouter"
+              }
+            ],
+            "services": [
+              {
+                "description": "The core business logic layer responsible for converting raw Debezium CDC events into Salesforce-compatible data structures. It performs complex calculations to derive the 'B2B_Order_Total__c' by aggregating order items and subtracting returns or cancellations based on the 'is_returned' flag in the order_items table.",
+                "name": "OrderTransformationService"
+              }
+            ]
+          },
+          "jobs": [
+            {
+              "description": "A heavy-duty batch job scheduled during the Sunday maintenance window (00:00 UTC). It utilizes the Salesforce Bulk API v2 to synchronize the 3 million historical records required for the initial migration. It is designed to scale horizontally across multiple ECS tasks to complete the backfill within the 3-hour target window.",
+              "schedule": "0 0 0 * * SUN",
+              "name": "HistoricalBackfillJob"
+            },
+            {
+              "description": "An hourly background task that scans the Dead-Letter Queue for messages that failed due to transient issues, such as temporary Salesforce downtime or network timeouts. It attempts to re-process these messages automatically, reducing the manual overhead for the Sales Ops and DevOps teams.",
+              "schedule": "0 0 * * * *",
+              "name": "DlqReprocessingJob"
+            },
+            {
+              "description": "A proactive job that runs every 30 minutes to check the validity of the Salesforce OAuth2 access token. If the token is nearing expiration, it performs a refresh flow using the stored client credentials, ensuring that the real-time sync service never encounters an 'Unauthorized' error during peak traffic.",
+              "schedule": "0 */30 * * * *",
+              "name": "SalesforceTokenRefreshJob"
+            },
+            {
+              "description": "A high-frequency monitoring job that calculates the current end-to-end synchronization latency. It compares the 'source_commit_timestamp' from the Debezium event with the current system time. If the latency exceeds the 5-minute SLA, it triggers a high-priority CloudWatch alarm for immediate intervention.",
+              "schedule": "*/5 * * * * *",
+              "name": "SlaMonitoringJob"
+            }
+          ]
+        },
+        "performance_design": {
+          "scaling": "The system is designed for horizontal scalability across multiple components. The Debezium CDC Connector runs on AWS ECS Fargate, allowing it to scale out by increasing the number of tasks based on the load of WAL changes. Amazon SQS provides inherent scalability as a managed message queue, buffering events and allowing for parallel consumption. The Salesforce Sync Service, also deployed on ECS Fargate, can be scaled horizontally by adjusting the desired count of tasks. This allows the service to process messages from SQS concurrently. The number of Sync Service tasks will be dynamically adjusted based on metrics like SQS queue depth (number of messages visible) and processing latency. Salesforce itself scales its API capacity, but the Sync Service's Circuit Breaker pattern and SQS buffering are crucial for managing interactions within Salesforce's rate limits. For database scaling, PostgreSQL RDS offers read replicas, which could be utilized if read-heavy operations unrelated to CDC become a bottleneck, though the primary focus here is on write performance and CDC extraction.",
+          "query_optimization": [
+            {
+              "details": "The current architecture implies that the Salesforce Sync Service might perform direct lookups in the PostgreSQL 'customers' table to resolve `customer_id` to `salesforce_account_id`. With millions of orders potentially referencing the same customers, this can lead to repeated database queries for the same customer data. By implementing a read-through cache (as described in the caching section) using Redis, these frequent lookups can be served directly from memory, significantly reducing database load and improving the processing speed of the Sync Service. The cache will store `customer_id` as the key and `salesforce_account_id` as the value, with an appropriate TTL.",
+              "query_type": "Customer ID to Salesforce Account ID Lookup",
+              "optimization": "Implement Read-Through Caching"
+            },
+            {
+              "details": "The Salesforce Sync Service needs to calculate `total_net_amount` by considering `total_gross_amount` from the `orders` table and potentially aggregating return information from `order_items` (specifically, items marked with `is_returned`). To optimize this, ensure appropriate indexes are in place. The existing `idx_orders_customer_id` and `idx_orders_updated_at` are beneficial. Additionally, an index on `orders(order_id, status)` might be useful if the net amount calculation frequently involves checking the status of related order items. For the `order_items` table, the existing `idx_order_items_order_id` is crucial. If the calculation involves filtering `order_items` by `is_returned` for a specific `order_id`, a composite index on `order_items(order_id, is_returned)` could further accelerate these specific aggregation queries.",
+              "query_type": "Order Aggregation for Net Amount Calculation",
+              "optimization": "Optimize `orders` and `order_items` table queries"
+            },
+            {
+              "details": "The 'orders' table is already planned for range partitioning by `order_date`. This is critical for maintaining performance as the table grows. Ensure that Debezium's publication includes only the necessary tables ('orders', 'order_items') and that `wal_level` is set to `logical`. Furthermore, monitor `max_wal_senders` and `wal_keep_size` on the PostgreSQL RDS instance to ensure the WAL stream can be reliably consumed by Debezium without the primary database needing to retain excessive WAL files, which could lead to disk space issues or replication lag. The `updated_at` column's trigger ensuring it's always updated is vital for Debezium to capture all changes.",
+              "query_type": "CDC Event Processing Efficiency",
+              "optimization": "Leverage PostgreSQL Partitioning and WAL Tuning"
+            }
+          ],
+          "caching": [
+            {
+              "description": "To optimize the performance of the Salesforce Sync Service when looking up Salesforce Account IDs based on customer_id, a read-through caching strategy will be implemented using Redis. This approach aims to reduce the latency associated with frequent database queries for customer information, especially when processing a high volume of orders. The cache will store mappings of `customer_id` to `salesforce_account_id`.",
+              "strategy": "Read-Through Caching for Customer Data",
+              "implementation_details": "The Salesforce Sync Service will first attempt to retrieve the `salesforce_account_id` from the Redis cache using the `customer_id` as the key. If the data is found in the cache (cache hit), it will be returned immediately, avoiding a database lookup. If the data is not found in the cache (cache miss), the service will query the PostgreSQL RDS database for the `salesforce_account_id` associated with the `customer_id`. Upon a successful database retrieval, the `customer_id` and its corresponding `salesforce_account_id` will be stored in Redis with a Time-To-Live (TTL) of 1 hour. This TTL is chosen as a balance between data freshness and cache hit rate, assuming customer account mappings do not change frequently. Redis will be deployed as a managed service (e.g., AWS ElastiCache) for high availability and scalability. The cache key will be prefixed with 'customer:' for better organization, e.g., 'customer:uuid-customer-id'.",
+              "cache_invalidation": "Cache invalidation will primarily be handled by the TTL mechanism. However, a more proactive invalidation strategy will be considered if customer account updates become more frequent or critical. This could involve a separate CDC stream for the 'customers' table, triggering invalidation events in Redis when a customer record is updated. For now, the TTL-based approach is deemed sufficient given the expected low churn rate of `salesforce_account_id` mappings."
+            },
+            {
+              "description": "While the primary focus is on read optimization, a write-through caching strategy will be employed for updates to customer data that might affect the `salesforce_account_id`. This ensures that the cache remains consistent with the database, although it introduces a slight overhead on writes.",
+              "strategy": "Write-Through Caching for Salesforce Account ID Updates",
+              "implementation_details": "When a new customer is created or an existing customer's `salesforce_account_id` is updated in PostgreSQL, the change will first be written to the database. Immediately after a successful database commit, the corresponding `customer_id` and `salesforce_account_id` will be written to the Redis cache. This ensures that subsequent read requests for this customer will find the updated information in the cache. The TTL will be applied as described in the read-through strategy.",
+              "cache_invalidation": "The write-through strategy inherently handles invalidation by ensuring the cache is updated concurrently with the database. The TTL mechanism acts as a secondary safeguard against stale data."
+            }
+          ],
+          "bottlenecks": [
+            {
+              "component": "Salesforce API Rate Limits",
+              "description": "Salesforce imposes strict limits on the number of API calls that can be made within a 24-hour period and per transaction. The Salesforce Sync Service's primary function is to push data to Salesforce, making these limits a critical potential bottleneck. Exceeding these limits will result in API errors, requiring messages to be retried and potentially leading to processing delays.",
+              "mitigation": "The system employs a multi-layered approach: 1. Asynchronous Buffering with SQS: SQS acts as a buffer, preventing a backlog of requests from overwhelming Salesforce during peak times. 2. Circuit Breaker Pattern: Implemented within the Salesforce Sync Service, this pattern stops sending requests to Salesforce if the error rate exceeds a predefined threshold, preventing cascading failures and allowing Salesforce to recover. 3. Exponential Backoff and Retries: Failed API calls are retried with increasing delays (exponential backoff) before being sent to the Dead-Letter Queue (DLQ). 4. Bulk API v2 for Backfills: For large historical data synchronization, the more efficient Bulk API v2 is used, which has different, more permissive limits for large data volumes. 5. Monitoring: AWS CloudWatch and Grafana are used to monitor Salesforce API usage metrics and SQS queue depth, triggering alerts when thresholds are approached."
+            },
+            {
+              "component": "Debezium CDC Throughput",
+              "description": "While Debezium is designed for low impact, extremely high write volumes to the 'orders' and 'order_items' tables could potentially saturate Debezium's ability to read from the WAL and publish events to SQS in a timely manner. This could lead to increased replication lag.",
+              "mitigation": "1. PostgreSQL WAL Configuration: Ensure `wal_level` is set to `logical`, and monitor `max_wal_senders` and `wal_keep_size` to prevent WAL file accumulation or loss. 2. ECS Task Scaling: The Debezium connector runs on ECS Fargate, which can be scaled horizontally by increasing the number of tasks. This allows for parallel processing of WAL segments if the workload demands it. 3. Database Performance: Maintain optimal performance of the PostgreSQL RDS instance itself, as Debezium's performance is indirectly tied to the database's ability to write to WAL efficiently. 4. SQS as a Buffer: SQS provides a buffer, so even if Debezium experiences a temporary slowdown, events are not lost; they simply queue up in SQS."
+            },
+            {
+              "component": "Salesforce Sync Service Processing Capacity",
+              "description": "The Salesforce Sync Service is responsible for complex data transformations and API interactions. If the volume of messages in SQS exceeds the processing capacity of the currently running Sync Service tasks (due to CPU constraints, network latency, or complex transformation logic), the queue depth will grow, increasing end-to-end latency.",
+              "mitigation": "1. Horizontal Scaling of Sync Service: The primary mitigation is to scale out the number of Sync Service ECS Fargate tasks. Auto-scaling rules can be configured based on SQS queue depth (e.g., number of visible messages) or average processing time per message. 2. Optimize Transformation Logic: Continuously profile and optimize the Java/Spring Boot code responsible for data transformation and Salesforce API payload creation to reduce CPU and memory usage. 3. Efficient Database Queries: As detailed in the query optimization section, ensure that any database lookups performed by the Sync Service (e.g., for customer data) are as efficient as possible, ideally leveraging caching. 4. Resource Allocation: Ensure ECS tasks are allocated sufficient CPU and memory resources."
+            },
+            {
+              "component": "PostgreSQL RDS Performance",
+              "description": "While the primary goal of CDC is to minimize impact, the act of writing to the WAL and potentially running triggers (e.g., for `updated_at`) does consume resources on the primary PostgreSQL RDS instance. Extremely high transaction rates could still impact the database's overall performance, affecting both write operations and read queries.",
+              "mitigation": "1. RDS Instance Sizing: Ensure the RDS instance is appropriately sized (CPU, RAM, IOPS) for the expected write load, considering the overhead of WAL generation. 2. Read Replicas: If read-heavy reporting or analytical queries unrelated to the CDC process become a bottleneck, consider implementing read replicas for PostgreSQL RDS to offload read traffic. 3. Partitioning: As mentioned, partitioning the `orders` table by `order_date` is crucial for managing large datasets and improving query performance, which indirectly benefits overall database health. 4. Connection Pooling: Ensure applications connecting to the database (if any directly interact, though the primary interaction is via CDC) use connection pooling effectively to manage database connections efficiently. 5. Monitoring: Closely monitor RDS performance metrics in CloudWatch, including CPU utilization, IOPS, write latency, and replication lag."
+            }
+          ]
+        },
+        "data_model": {
+          "relationships": [
+            {
+              "to": "orders",
+              "type": "1:N",
+              "from_": "customers"
+            },
+            {
+              "to": "order_items",
+              "type": "1:N",
+              "from_": "orders"
+            }
+          ],
+          "indexes": [
+            {
+              "table": "orders",
+              "type": "BTREE",
+              "columns": [
+                "customer_id"
+              ],
+              "name": "idx_orders_customer_id"
+            },
+            {
+              "table": "orders",
+              "type": "BTREE",
+              "columns": [
+                "updated_at"
+              ],
+              "name": "idx_orders_updated_at"
+            },
+            {
+              "table": "orders",
+              "type": "BTREE",
+              "columns": [
+                "order_date"
+              ],
+              "name": "idx_orders_order_date"
+            },
+            {
+              "table": "order_items",
+              "type": "BTREE",
+              "columns": [
+                "order_id"
+              ],
+              "name": "idx_order_items_order_id"
+            }
+          ],
+          "collections": [
+            {
+              "table_name": "customers",
+              "columns": [
+                {
+                  "type": "UUID",
+                  "description": "Unique identifier for the B2B customer entity. This serves as the primary key and is used to link orders to specific corporate accounts.",
+                  "constraints": "PRIMARY KEY, DEFAULT gen_random_uuid()",
+                  "name": "customer_id"
+                },
+                {
+                  "type": "VARCHAR(18)",
+                  "description": "The corresponding Account ID in Salesforce CRM. This is a critical mapping field used by the Salesforce Sync Service to ensure data is pushed to the correct record in the target system.",
+                  "constraints": "UNIQUE, NOT NULL",
+                  "name": "salesforce_account_id"
+                },
+                {
+                  "type": "VARCHAR(255)",
+                  "description": "The legal name of the B2B entity. Used for auditing and display purposes within the OMS and Salesforce.",
+                  "constraints": "NOT NULL",
+                  "name": "company_name"
+                },
+                {
+                  "type": "TIMESTAMPTZ",
+                  "description": "Timestamp indicating when the customer record was first created in the OMS.",
+                  "constraints": "DEFAULT CURRENT_TIMESTAMP",
+                  "name": "created_at"
+                }
+              ]
+            },
+            {
+              "table_name": "orders",
+              "columns": [
+                {
+                  "type": "VARCHAR(18)",
+                  "description": "The unique identifier assigned by Salesforce after a successful sync. This field is essential for performing idempotent updates and preventing duplicate records in the CRM.",
+                  "constraints": "UNIQUE",
+                  "name": "salesforce_order_id"
+                },
+                {
+                  "type": "VARCHAR(20)",
+                  "description": "Tracks the integration state of the order (e.g., PENDING, IN_PROGRESS, SYNCED, FAILED). Used by the monitoring service to identify records requiring manual intervention or automatic retry.",
+                  "constraints": "DEFAULT 'PENDING'",
+                  "name": "sync_status"
+                }
+              ]
+            },
+            {
+              "table_name": "order_items",
+              "columns": [
+                {
+                  "type": "BIGINT",
+                  "description": "Unique identifier for an individual line item within an order.",
+                  "constraints": "PRIMARY KEY, GENERATED ALWAYS AS IDENTITY",
+                  "name": "order_item_id"
+                },
+                {
+                  "type": "BIGINT",
+                  "description": "Foreign key linking the line item to its parent order. Cascading delete ensures data integrity during cleanup.",
+                  "constraints": "REFERENCES orders(order_id) ON DELETE CASCADE, NOT NULL",
+                  "name": "order_id"
+                },
+                {
+                  "type": "UUID",
+                  "description": "Identifier for the product or service purchased. Links to the product catalog (external to this specific schema scope).",
+                  "constraints": "NOT NULL",
+                  "name": "product_id"
+                },
+                {
+                  "type": "INTEGER",
+                  "description": "The number of units ordered for this specific line item.",
+                  "constraints": "NOT NULL, CHECK (quantity > 0)",
+                  "name": "quantity"
+                },
+                {
+                  "type": "NUMERIC(15,2)",
+                  "description": "The price per unit at the time of the order, preserved for historical accuracy regardless of future price changes.",
+                  "constraints": "NOT NULL",
+                  "name": "unit_price"
+                },
+                {
+                  "type": "BOOLEAN",
+                  "description": "Flag indicating if this specific item was returned. The Sync Service aggregates these flags to recalculate the net order total.",
+                  "constraints": "DEFAULT FALSE",
+                  "name": "is_returned"
+                }
+              ]
+            }
+          ],
+          "design_notes": "The database is designed for high-concurrency B2B transaction processing with a focus on CDC (Change Data Capture) efficiency. 1. Logical Replication: The PostgreSQL instance must have wal_level set to 'logical' to enable Debezium to stream row-level changes. A publication named 'dbz_publication' should be created for the 'orders' and 'order_items' tables. 2. Partitioning Strategy: Given the 50 million record volume, the 'orders' table should implement Range Partitioning based on the 'order_date' column (e.g., monthly partitions). This improves query performance for recent orders and simplifies archival of historical data. 3. Concurrency and Integrity: Foreign key constraints are strictly enforced to maintain referential integrity between customers, orders, and items. The 'updated_at' column is updated via a database trigger on every row modification to ensure Debezium never misses a state change. 4. Performance Optimization: Indexes on 'updated_at' and 'customer_id' are prioritized to support both the CDC streaming process and the Salesforce Sync Service's need to aggregate data by account. The use of BIGINT for primary keys prevents ID exhaustion in high-volume environments."
+        }
+      },
+      "plan": {
+        "milestones": [
+          {
+            "description": "Completion of Terraform provisioning and the successful RDS restart on April 21st to enable logical replication.",
+            "title": "Infrastructure Readiness & CDC Activation"
+          },
+          {
+            "description": "Successful capture of an order change in PostgreSQL by Debezium and its arrival in the SQS buffer.",
+            "title": "Real-time Event Stream Validation"
+          },
+          {
+            "description": "A live order update in the OMS is successfully reflected in Salesforce with the correct 'B2B_Order_Total__c' within 5 minutes.",
+            "title": "First End-to-End Sync to Salesforce"
+          },
+          {
+            "description": "Successful migration of 3 million legacy records within the 3-hour Sunday maintenance window using Bulk API v2.",
+            "title": "Historical Backfill Completion"
+          },
+          {
+            "description": "Full system deployment with active monitoring, alerting, and DLQ management tools operational.",
+            "title": "Production Go-Live"
+          }
+        ],
+        "critical_path": [
+          "Terraform Provisioning of Core AWS Resources",
+          "PostgreSQL Logical Replication Configuration (April 21st Deadline)",
+          "Debezium Connector Deployment on ECS",
+          "Salesforce OAuth2 JWT Flow Implementation",
+          "Order Transformation and Net Amount Logic",
+          "Bulk API v2 Client Development",
+          "Historical Backfill Job Orchestration",
+          "Production Go-Live"
+        ],
+        "phases": [
+          {
+            "description": "This initial phase focuses on establishing the resilient AWS environment and security protocols required for the high-volume synchronization. We will use Terraform to provision managed services and configure the critical PostgreSQL parameters necessary for Change Data Capture (CDC).",
+            "tasks": [
+              {
+                "description": "Execute Terraform scripts to provision the PostgreSQL RDS instance, Amazon SQS (including the Dead-Letter Queue), Amazon ElastiCache for Redis, and the ECS Fargate clusters. This ensures environment parity and infrastructure-as-code consistency.",
+                "dependencies": [],
+                "task_name": "Terraform Provisioning of Core AWS Resources"
+              },
+              {
+                "description": "Modify the RDS Parameter Group to set 'wal_level' to 'logical'. This task includes the mandatory database restart scheduled for April 21st to enable Debezium to read the Write-Ahead Log (WAL).",
+                "dependencies": [
+                  "Terraform Provisioning of Core AWS Resources"
+                ],
+                "task_name": "PostgreSQL Logical Replication Configuration"
+              },
+              {
+                "description": "Configure AWS Secrets Manager to store Salesforce OAuth2 credentials and RDS connection strings. Define IAM Task Roles for ECS to allow the Sync Service and Debezium to access SQS and Secrets Manager without static credentials.",
+                "dependencies": [
+                  "Terraform Provisioning of Core AWS Resources"
+                ],
+                "task_name": "Secrets Manager and IAM Role Setup"
+              }
+            ],
+            "phase_name": "Phase 1: Infrastructure Foundation and Security Hardening"
+          },
+          {
+            "description": "In this phase, we establish the real-time data capture mechanism. We will deploy the Debezium connector and verify that database changes are correctly transformed into events and buffered in SQS.",
+            "tasks": [
+              {
+                "description": "Deploy the Debezium engine as an ECS Fargate task. Configure the connector to monitor the 'orders' and 'order_items' tables and publish JSON-formatted change events to the SQS buffer.",
+                "dependencies": [
+                  "PostgreSQL Logical Replication Configuration",
+                  "Secrets Manager and IAM Role Setup"
+                ],
+                "task_name": "Debezium Connector Deployment on ECS"
+              },
+              {
+                "description": "Fine-tune SQS visibility timeouts and configure the Redrive Policy to move failed messages to the DLQ after 5 unsuccessful attempts. This ensures the system can handle transient spikes and failures.",
+                "dependencies": [
+                  "Terraform Provisioning of Core AWS Resources"
+                ],
+                "task_name": "SQS Buffer and Redrive Policy Configuration"
+              }
+            ],
+            "phase_name": "Phase 2: CDC Pipeline and Messaging Integration"
+          },
+          {
+            "description": "This is the core development phase where the Java/Spring Boot microservice is built. It involves implementing the business logic for order aggregation, Salesforce API integration, and resilience patterns.",
+            "tasks": [
+              {
+                "description": "Develop the authentication module using the JWT Bearer Flow. This ensures secure, server-to-server communication with Salesforce using the private key stored in Secrets Manager.",
+                "dependencies": [
+                  "Secrets Manager and IAM Role Setup"
+                ],
+                "task_name": "Salesforce OAuth2 JWT Flow Implementation"
+              },
+              {
+                "description": "Implement the service logic to calculate 'B2B_Order_Total__c' by aggregating line items and subtracting returns. This logic must handle the 'is_returned' flag from the CDC event payload.",
+                "dependencies": [
+                  "Debezium Connector Deployment on ECS"
+                ],
+                "task_name": "Order Transformation and Net Amount Logic"
+              },
+              {
+                "description": "Implement the Read-Through caching strategy in the Sync Service. The service will lookup 'salesforce_account_id' from Redis using 'customer_id' to minimize RDS load during high-frequency syncs.",
+                "dependencies": [
+                  "Terraform Provisioning of Core AWS Resources"
+                ],
+                "task_name": "Redis Cache Integration for Account Mapping"
+              },
+              {
+                "description": "Integrate the Circuit Breaker pattern to protect the system from Salesforce API downtime. Configure thresholds for failure rates and slow calls to trigger the 'Open' state and prevent resource exhaustion.",
+                "dependencies": [
+                  "Salesforce OAuth2 JWT Flow Implementation"
+                ],
+                "task_name": "Resilience4j Circuit Breaker Integration"
+              }
+            ],
+            "phase_name": "Phase 3: Salesforce Sync Service Development"
+          },
+          {
+            "description": "This phase addresses the migration of 3 million legacy records. We will develop the specialized batch job that utilizes Salesforce Bulk API v2 to meet the 3-hour Sunday maintenance window requirement.",
+            "tasks": [
+              {
+                "description": "Develop the high-throughput client for Salesforce Bulk API v2. This includes job creation, batch uploading of CSV/JSON data, and job status monitoring logic.",
+                "dependencies": [
+                  "Salesforce OAuth2 JWT Flow Implementation"
+                ],
+                "task_name": "Bulk API v2 Client Development"
+              },
+              {
+                "description": "Create the 'HistoricalBackfillJob' scheduled for Sunday. Implement logic to paginate through 50 million records in RDS and stream them to Salesforce in large batches.",
+                "dependencies": [
+                  "Bulk API v2 Client Development",
+                  "Order Transformation and Net Amount Logic"
+                ],
+                "task_name": "Historical Backfill Job Orchestration"
+              }
+            ],
+            "phase_name": "Phase 4: Historical Backfill and Bulk API Implementation"
+          },
+          {
+            "description": "The final phase ensures the system meets the < 5-minute latency SLA and provides the Sales Ops team with the necessary tools to manage failures and monitor performance.",
+            "tasks": [
+              {
+                "description": "Configure CloudWatch dashboards to visualize E2E latency, SQS depth, and Salesforce API usage. Set up high-priority alarms for SLA breaches (> 5 mins) and DLQ growth.",
+                "dependencies": [
+                  "Debezium Connector Deployment on ECS",
+                  "Resilience4j Circuit Breaker Integration"
+                ],
+                "task_name": "CloudWatch Dashboards and SLA Alerting"
+              },
+              {
+                "description": "Develop the administrative REST endpoints for inspecting and replaying messages from the DLQ. This allows the Sales Ops team to recover from persistent validation errors.",
+                "dependencies": [
+                  "SQS Buffer and Redrive Policy Configuration"
+                ],
+                "task_name": "DLQ Management and Replay API Development"
+              }
+            ],
+            "phase_name": "Phase 5: Observability and Operational Tooling"
+          }
+        ],
+        "notes": "The most critical constraint is the RDS restart on April 21st; missing this window will delay the entire CDC pipeline. The backfill operation must be load-tested in a staging environment to ensure the 3-million record target can be met within the 3-hour window without hitting Salesforce Bulk API limits."
+      }
+    }
