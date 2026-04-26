@@ -25,6 +25,14 @@ FlowFD is not a prototype. It is a fully deployable SaaS with every layer wired 
 
 ---
 
+<img width="1920" height="1032" alt="image" src="https://github.com/user-attachments/assets/aae95ea7-69f1-48eb-894f-802a16725519" />
+<img width="1920" height="1032" alt="image" src="https://github.com/user-attachments/assets/21a256bf-3a33-42f7-9464-a579265b3c6c" />
+<img width="1920" height="1032" alt="image" src="https://github.com/user-attachments/assets/bcb182c6-d75b-41d8-8352-7aaf4e286326" />
+<img width="1920" height="1032" alt="image" src="https://github.com/user-attachments/assets/770cbc87-e533-4562-a000-c7bc60ad2765" />
+<img width="1920" height="1032" alt="image" src="https://github.com/user-attachments/assets/c01216e2-98af-4de7-b7a0-4a09d0c0e225" />
+
+---
+
 ## What it does
 
 An FDE typically spends hours every week converting unstructured meeting notes into CPS documents, PRDs, design specs, and code scaffolds. FlowFD automates this pipeline end-to-end.
